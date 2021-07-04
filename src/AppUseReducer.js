@@ -1,18 +1,13 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useReducer, useContext } from "react";
 import './App.css';
 import styled from '@emotion/styled';
 import { CssBaseline } from "@material-ui/core";
 import PokemonInfo from "./components/PokemonInfo";
 import PokemonFilter from "./components/PokemonFilter";
 import PokemonTable from "./components/PokemonTable";
-import { createStore } from 'redux';
-import { Provider, useSelector, useDispatch } from "react-redux";
+import PokemonContext from "./PokemonContext";
 
-const pokemonReducer = (state = {
-  filterPokemon: "",
-  pokemon: [],
-  selectedPokemon: null,
-}, action) => {
+const pokemonReducer = (state, action) => {
   switch(action.type) {
     case 'SET_FILTER_POKEMON':
       return {
@@ -30,11 +25,27 @@ const pokemonReducer = (state = {
         selectedPokemon: action.payload
       };
     default:
-      return state;
+      throw new Error("No action");
   }
 }
 
-const store = createStore(pokemonReducer);
+// this was removed from the PokemonTable.js because of new updates (removing useContext)
+const PokemonTable = () => {
+  const { state: { pokemon, filterPokemon }, dispatch, } = useContext(PokemonContext);
+  return (
+      <table width="100%">
+          <tbody>
+              {pokemon
+              .filter(({ name: { english } }) => english.toLocaleLowerCase().includes(filterPokemon.toLocaleLowerCase()))
+              .slice(0, 20)
+              .map((pokemon) => (<PokemonRow 
+                  pokemon={pokemon} 
+                  onClick={(pokemon) => dispatch({type: 'SET_SELECTED_POKEMON', paylod: pokemon})} />))
+              }
+          </tbody>
+      </table>
+  );
+};
 
 const Title = styled.h1`
   text-align: center;
@@ -52,9 +63,12 @@ const TwoColumnLayout = styled.div`
   grid-column-gap: 1rem;
 `;
 
-function App() {
-  const dispatch = useDispatch();
-  const pokemon = useSelector(state => state.pokemon);
+function AppUseReducer() {
+  const [state, dispatch] = useReducer(pokemonReducer, {
+    filterPokemon: "",
+    pokemon: [],
+    selectedPokemon: null,
+  });
 
   useEffect(() => {
     fetch("http://localhost:3000/react-app/pokemon.json")
@@ -67,11 +81,12 @@ function App() {
     }, []
   );
 
-  if (!pokemon) {
+  if (!state.pokemon) {
     return <div>Loading data</div>;
   }
 
   return (
+    <PokemonContext.Provider value={{state, dispatch}}>
       <PageContainer>
         <CssBaseline />
         <Title>Pokemon Search</Title>
@@ -83,7 +98,8 @@ function App() {
           <PokemonInfo />
         </TwoColumnLayout>
       </PageContainer>
+    </PokemonContext.Provider>
   );
 }
 
-export default () => <Provider store={store}><App /></Provider> ;
+export default AppUseReducer;
